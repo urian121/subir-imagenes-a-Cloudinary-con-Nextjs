@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
-import Image from 'next/image';
 import axios from "axios";
 import useSWR from 'swr';
+import Gallery from './components/Gallery';
+import { showToast } from "nextjs-toast-notify";
 
 // Fetcher function para useSWR
 const fetcher = async (url) => {
@@ -15,7 +16,11 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   
   // useSWR para manejo de datos
-  const { data: images = [], error, isLoading, mutate } = useSWR('/api/images', fetcher);
+  const { data: images = [], error, isLoading, mutate } = useSWR('/api/images', fetcher, {
+    refreshInterval: 0, // Desactivar polling automático
+    revalidateOnFocus: false, // No revalidar al enfocar
+    dedupingInterval: 2000 // Evitar requests duplicados
+  });
 
   const handleUpload = async () => {
     if (!file) return;
@@ -30,7 +35,25 @@ export default function Home() {
       });
       console.log("Upload successful:", response.data);
       setFile(null);
-      // Revalidar datos automáticamente
+      // Actualización optimista: agregar imagen inmediatamente
+      const newImage = response.data.image;
+      if (newImage) {
+        const currentImages = images || [];
+        mutate([newImage, ...currentImages], false);
+
+        // 🔥 en lugar de mutate() directo, haz un pequeño delay
+        setTimeout(() => mutate(), 2500);
+
+        showToast.success("¡La imagen se subió con éxito!", {
+          duration: 4000,
+          progress: true,
+          position: "top-right",
+          transition: "topBounce",
+          icon: '',
+          sound: true,
+        });
+      }
+      // Revalidar en segundo plano
       mutate();
     } catch (error) {
       console.error("Upload failed:", error);
@@ -40,16 +63,29 @@ export default function Home() {
   };
 
   const handleDelete = async (publicId) => {
-    if (!confirm("¿Estás seguro de que quieres eliminar esta imagen?")) return;
 
     try {
-      await axios.delete("/api/delete", {
-        data: { publicId }
+      // Actualización optimista: remover imagen inmediatamente
+      const currentImages = images || [];
+      const filteredImages = currentImages.filter(img => img.public_id !== publicId);
+      mutate(filteredImages, false);
+      
+      await axios.delete(`/api/delete?public_id=${encodeURIComponent(publicId)}`);
+
+      showToast.success("¡La imagen eliminada con éxito!", {
+        duration: 4000,
+        progress: true,
+        position: "top-right",
+        transition: "topBounce",
+        icon: '',
+        sound: true,
       });
-      // Revalidar datos automáticamente
+      // Revalidar en segundo plano
       mutate();
     } catch (error) {
       console.error("Error deleting image:", error);
+      // Revertir cambios en caso de error
+      mutate();
     }
   };
 
@@ -95,50 +131,11 @@ export default function Home() {
         </div>
 
         {/* Galería - Lado derecho */}
-        <div className="gallery-panel">
-          <h2>Galería ({images?.length || 0} imágenes)</h2>
-          
-          {isLoading ? (
-            <div className="loading-state">
-              <div className="spinner large"></div>
-              <p>Cargando imágenes...</p>
-            </div>
-          ) : !images || images.length === 0 ? (
-            <div className="empty-state">
-              <p>No hay imágenes disponibles</p>
-              <span>Sube tu primera imagen para comenzar</span>
-            </div>
-          ) : (
-            <div className="gallery-grid">
-              {images.map((image) => (
-                <div key={image.public_id} className="gallery-item">
-                  <div className="image-wrapper">
-                    <Image 
-                      src={image.secure_url} 
-                      alt={image.public_id}
-                      width={300}
-                      height={200}
-                      className="gallery-image"
-                      loading="lazy"
-                    />
-                    <div className="image-overlay">
-                      <button 
-                        className="delete-button"
-                        onClick={() => handleDelete(image.public_id)}
-                        title="Eliminar imagen"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                  <div className="image-info">
-                    <span className="image-name">{image.public_id}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <Gallery 
+          images={images}
+          isLoading={isLoading}
+          onDelete={handleDelete}
+        />
       </div>
     </div>
   );

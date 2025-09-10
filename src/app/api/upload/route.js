@@ -22,7 +22,17 @@ export async function POST(req) {
       }).end(buffer);
     });
 
-    return NextResponse.json({ url: upload.secure_url });
+    return NextResponse.json({ 
+      url: upload.secure_url,
+      image: {
+        public_id: upload.public_id,
+        secure_url: upload.secure_url,
+        created_at: upload.created_at,
+        format: upload.format,
+        width: upload.width,
+        height: upload.height
+      }
+    });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
