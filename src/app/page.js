@@ -38,10 +38,7 @@ export default function Home() {
       // Actualización optimista: agregar imagen inmediatamente
       const newImage = response.data.image;
       if (newImage) {
-        const currentImages = images || [];
-        mutate([newImage, ...currentImages], false);
-
-        // 🔥 en lugar de mutate() directo, haz un pequeño delay
+        // Revalidar datos después de 2.5s para confirmar la subida
         setTimeout(() => mutate(), 2500);
 
         showToast.success("¡La imagen se subió con éxito!", {
