@@ -1,95 +1,145 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+import { useState } from "react";
+import Image from 'next/image';
+import axios from "axios";
+import useSWR from 'swr';
+
+// Fetcher function para useSWR
+const fetcher = async (url) => {
+  const response = await axios.get(url);
+  return response.data.images;
+};
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.js</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  
+  // useSWR para manejo de datos
+  const { data: images = [], error, isLoading, mutate } = useSWR('/api/images', fetcher);
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+  const handleUpload = async () => {
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await axios.post("/api/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log("Upload successful:", response.data);
+      setFile(null);
+      // Revalidar datos automáticamente
+      mutate();
+    } catch (error) {
+      console.error("Upload failed:", error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (publicId) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar esta imagen?")) return;
+
+    try {
+      await axios.delete("/api/delete", {
+        data: { publicId }
+      });
+      // Revalidar datos automáticamente
+      mutate();
+    } catch (error) {
+      console.error("Error deleting image:", error);
+    }
+  };
+
+  return (
+    <div className="main-container">
+      <h1 className="main-title">Cloudinary Gallery</h1>
+      
+      <div className="content-layout">
+        {/* Formulario de subida - Lado izquierdo */}
+        <div className="upload-panel">
+          <div className="upload-card">
+            <h2>Subir Nueva Imagen</h2>
+            <div className="upload-form">
+              <div className="file-input-wrapper">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFile(e.target.files[0])}
+                  className="file-input"
+                  id="file-upload"
+                />
+                <label htmlFor="file-upload" className="file-label">
+                  {file ? file.name : "Seleccionar imagen"}
+                </label>
+              </div>
+              
+              <button 
+                onClick={handleUpload} 
+                disabled={!file || uploading}
+                className="upload-button"
+              >
+                {uploading ? (
+                  <>
+                    <span className="spinner"></span>
+                    Subiendo...
+                  </>
+                ) : (
+                  "Subir Imagen"
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Galería - Lado derecho */}
+        <div className="gallery-panel">
+          <h2>Galería ({images?.length || 0} imágenes)</h2>
+          
+          {isLoading ? (
+            <div className="loading-state">
+              <div className="spinner large"></div>
+              <p>Cargando imágenes...</p>
+            </div>
+          ) : !images || images.length === 0 ? (
+            <div className="empty-state">
+              <p>No hay imágenes disponibles</p>
+              <span>Sube tu primera imagen para comenzar</span>
+            </div>
+          ) : (
+            <div className="gallery-grid">
+              {images.map((image) => (
+                <div key={image.public_id} className="gallery-item">
+                  <div className="image-wrapper">
+                    <Image 
+                      src={image.secure_url} 
+                      alt={image.public_id}
+                      width={300}
+                      height={200}
+                      className="gallery-image"
+                      loading="lazy"
+                    />
+                    <div className="image-overlay">
+                      <button 
+                        className="delete-button"
+                        onClick={() => handleDelete(image.public_id)}
+                        title="Eliminar imagen"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                  <div className="image-info">
+                    <span className="image-name">{image.public_id}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
