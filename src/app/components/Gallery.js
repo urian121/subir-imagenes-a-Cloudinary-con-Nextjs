@@ -38,8 +38,15 @@ export default function Gallery({ images, isLoading, onDelete }) {
                   </button>
                 </div>
               </div>
-              <div className="image-info">
-                <span className="image-name">{image.public_id}</span>
+             <div className="image-info">
+                <a 
+                  href={image.secure_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="image-name"
+                >
+                  {image.public_id}
+                </a>
               </div>
             </div>
           ))}
