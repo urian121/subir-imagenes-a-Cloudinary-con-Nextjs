@@ -8,8 +8,8 @@ Aplicación web moderna para subir, visualizar y gestionar imágenes utilizando 
 
 1. **Clonar el repositorio e instalar dependencias:**
    ```bash
-   git clone <url-del-repo>
-   cd nextjs-cloudinary
+   git clone https://github.com/urian121/subir-imagenes-a-Cloudinary-con-Nextjs
+   cd subir-imagenes-a-Cloudinary-con-Nextjs
    npm install
    ```
 
