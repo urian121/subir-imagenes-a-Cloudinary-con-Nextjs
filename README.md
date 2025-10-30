@@ -33,7 +33,7 @@ Aplicación web moderna para subir, visualizar y gestionar imágenes utilizando 
 ## 🛠️ Tecnologías y Librerías
 
 ### Frontend
-- **Next.js 14** - Framework React con App Router y Server Components
+- **Next.js 15** - Framework React con App Router y Server Components
 - **React 18** - Biblioteca para interfaces de usuario
 - **SWR** - Librería para fetching de datos con cache y revalidación automática
 - **Axios** - Cliente HTTP para peticiones a la API
